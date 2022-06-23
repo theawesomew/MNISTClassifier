@@ -1,6 +1,6 @@
 import numpy as np
 import gzip
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 def get_training_images (n: int):
 	with gzip.open('dataset/train-images-idx3-ubyte.gz') as f:
@@ -66,7 +66,7 @@ class MNISTClassifier ():
 		output = np.zeros((10, 10))
 
 		for (i,j) in zip(range(10), range(10)):
-			output[i][j] = self.softmax(x, i) * ((i==j) - self.softmax(x,j))
+			output[i][j] = np.dot(self.softmax(x, i).T, ((i==j) - self.softmax(x,j)))
 
 		return output
 
@@ -74,17 +74,20 @@ class MNISTClassifier ():
 		return np.sum(np.square(expected-output))
 
 	def backpropagation (self, expected):
-		dLy = 2 * (self.output - expected)
-		dyz = self.softmaxDerivative(self.output)
-		dzW1 = np.dot(self.hidden, self.ReLUDerivative(self.output))
-		dzW0 = np.dot(np.dot(np.dot(self.ReLUDerivative(self.input), self.softmaxDerivative(self.output)), self.weights[1].T), self.input)  
+		deltaLossY = 2 * (self.output - expected)
+		deltaYZ = self.softmaxDerivative(self.output)
+		deltaZWOne = np.dot(self.ReLUDerivative(self.hidden), self.hidden.T)
+		deltaLossWOne = np.dot(np.dot(deltaYZ, deltaLossY.T), deltaZWOne)
+		print(self.ReLUDerivative(self.output).shape, self.weights[1].shape, self.input.shape, self.ReLUDerivative(self.hidden).shape)
+		deltaLossWZero = np.dot(np.dot(self.ReLUDerivative(self.output), self.weights[1].T), np.dot(self.input.T, self.ReLUDerivative(self.hidden))).T
+		
+		self.weights[0] -= deltaLossWZero
+		self.weights[1] -= deltaLossWOne
 
-		self.weights[0] -= np.dot(np.dot(dzW0, dyz), dLy)
-		self.weights[1] -= np.dot(np.dot(dzW1, dyz), dLy)
 
 classifier = MNISTClassifier()
 
-NUM_OF_IMGS = 100
+NUM_OF_IMGS = 5
 
 losses = []
 
@@ -97,6 +100,3 @@ for (img, label, index) in zip(get_training_images(NUM_OF_IMGS), get_training_la
 	classifier.backpropagation(expected)
 
 	losses.append(loss)
-
-plt.plot(losses)
-plt.show()
